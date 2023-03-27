@@ -14,8 +14,9 @@ from typing import Annotated
 
 from mysql import connector
 
-from models import UserCreate, AdminCreate
+from models import UserCreate, AdminCreate, HostCreate
 from validate import *
+from sql import *
 
 app = FastAPI()
 security = HTTPBasic()
@@ -25,8 +26,6 @@ security = HTTPBasic()
 
 @app.get("/users")
 async def get_all_users(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
-
     admin_username = credentials.username
     admin_password_hash = hashlib.md5(credentials.password.encode())
 
@@ -39,35 +38,29 @@ async def get_all_users(response: Response,  credentials: Annotated[HTTPBasicCre
 
     users_list = []
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `users` WHERE 1"
+    sql = "SELECT * FROM `users`"
+    result = sql_query(sql)
 
-        cursor.execute(sql)
+    for row in result:
+        current_user = {
+            "username": row[1],
+            "name": row[3],
+            "surname": row[4],
+            "usergroup_id": row[5],
+            "avatar_id": row[6],
+            "email": row[7],
+            "phone": row[8],
+            "country": row[9],
+            "sity": row[10],
+            "adress": row[11],
+        }
 
-        result = cursor.fetchall()
-
-        for row in result:
-            current_user = {
-                "username": row[1],
-                "name": row[3],
-                "surname": row[4],
-                "usergroup_id": row[5],
-                "avatar_id": row[6],
-                "email": row[7],
-                "phone": row[8],
-                "country": row[9],
-                "sity": row[10],
-                "adress": row[11],
-            }
-
-            users_list.append(current_user)
+        users_list.append(current_user)
         
-        return {"result": users_list}
+    return {"result": users_list}
 
 @app.get("/users/{user_id}")
 async def get_user_by_id(user_id, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
-
     admin_username = credentials.username
     admin_password_hash = hashlib.md5(credentials.password.encode())
 
@@ -78,36 +71,31 @@ async def get_user_by_id(user_id, response: Response,  credentials: Annotated[HT
         response.status_code = status.HTTP_401_UNAUTHORIZED
         return
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `users` WHERE `user_id`='" + str(user_id) + "'"
+    sql = "SELECT * FROM `users` WHERE `user_id`='" + str(user_id) + "'"
 
-        cursor.execute(sql)
+    result = sql_query(sql)
 
-        result = cursor.fetchall()
-
-        if(cursor.rowcount == 0):
-            response.status_code = status.HTTP_404_NOT_FOUND
-            return
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
         
-        user_data = {
-            "username": result[0][1],
-            "name": result[0][3],
-            "surname": result[0][4],
-            "usergroup_id": result[0][5],
-            "avatar_id": result[0][6],
-            "email": result[0][7],
-            "phone": result[0][8],
-            "country": result[0][9],
-            "sity": result[0][10],
-            "adress": result[0][11],
-        }
+    user_data = {
+        "username": result[0][1],
+        "name": result[0][3],
+        "surname": result[0][4],
+        "usergroup_id": result[0][5],
+        "avatar_id": result[0][6],
+        "email": result[0][7],
+        "phone": result[0][8],
+        "country": result[0][9],
+        "sity": result[0][10],
+        "adress": result[0][11],
+    }
         
-        return {"result": user_data}
+    return {"result": user_data}
 
 @app.get("/users/{username}/username")
 async def get_user_by_username(username, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
-
     admin_username = credentials.username
     admin_password_hash = hashlib.md5(credentials.password.encode())
 
@@ -118,36 +106,31 @@ async def get_user_by_username(username, response: Response,  credentials: Annot
         response.status_code = status.HTTP_401_UNAUTHORIZED
         return
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `users` WHERE `username`='" + str(username) + "'"
+    sql = "SELECT * FROM `users` WHERE `username`='" + str(username) + "'"
 
-        cursor.execute(sql)
+    result = sql_query(sql)
 
-        result = cursor.fetchall()
-
-        if(cursor.rowcount == 0):
-            response.status_code = status.HTTP_404_NOT_FOUND
-            return
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
         
-        user_data = {
-            "username": result[0][1],
-            "name": result[0][3],
-            "surname": result[0][4],
-            "usergroup_id": result[0][5],
-            "avatar_id": result[0][6],
-            "email": result[0][7],
-            "phone": result[0][8],
-            "country": result[0][9],
-            "sity": result[0][10],
-            "adress": result[0][11],
-        }
+    user_data = {
+        "username": result[0][1],
+        "name": result[0][3],
+        "surname": result[0][4],
+        "usergroup_id": result[0][5],
+        "avatar_id": result[0][6],
+        "email": result[0][7],
+        "phone": result[0][8],
+        "country": result[0][9],
+        "sity": result[0][10],
+        "adress": result[0][11],
+    }
         
-        return {"result": user_data}
+    return {"result": user_data}
 
 @app.get("/users/{user_id}/balance")
 async def get_user_balance(user_id, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
-
     admin_username = credentials.username
     admin_password_hash = hashlib.md5(credentials.password.encode())
 
@@ -158,58 +141,48 @@ async def get_user_balance(user_id, response: Response,  credentials: Annotated[
         response.status_code = status.HTTP_401_UNAUTHORIZED
         return
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `users` WHERE `user_id`='" + str(user_id) + "'"
+    sql = "SELECT * FROM `users` WHERE `user_id`='" + str(user_id) + "'"
 
-        cursor.execute(sql)
+    result = sql_query(sql)
 
-        result = cursor.fetchall()
-
-        if(cursor.rowcount == 0):
-            response.status_code = status.HTTP_404_NOT_FOUND
-            return
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
     
     currency_list = []
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `currency`"
+    sql = "SELECT * FROM `currency`"
 
-        cursor.execute(sql)
+    result = sql_query(sql)
 
-        result = cursor.fetchall()
-
-        for row in result:
-            currency_list.append(row[0])
+    for row in result:
+        currency_list.append(row[0])
     
     user_balance_list = []
 
     for currency in currency_list:
-        with connection.cursor() as cursor:
-            sql = "SELECT * FROM `user_balance` WHERE `user_id`='" + str(user_id) + "' AND `currency_id`='" + str(currency) + "'"
+        sql = "SELECT * FROM `user_balance` WHERE `user_id`='" + str(user_id) + "' AND `currency_id`='" + str(currency) + "'"
 
-            cursor.execute(sql)
+        result = sql_query(sql)
 
-            result = cursor.fetchall()
+        if(len(result) == 0):
+            sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency) + "','0')"
 
-            if(cursor.rowcount == 0):
-                sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency) + "','0')"
+            sql_query(sql)
 
-                cursor.execute(sql)
-                connection.commit()
+            current_currency = {
+                "currency_id": currency,
+                "balance": 0
+            }
 
-                current_currency = {
-                    "currency_id": currency,
-                    "balance": 0
-                }
+            user_balance_list.append(current_currency)
+        else:
+            current_currency = {
+                "currency_id": currency,
+                "balance": result[0][3]
+            }
 
-                user_balance_list.append(current_currency)
-            else:
-                current_currency = {
-                    "currency_id": currency,
-                    "balance": result[0][3]
-                }
-
-                user_balance_list.append(current_currency)
+            user_balance_list.append(current_currency)
 
     return {
         "user_id": user_id,
@@ -218,8 +191,6 @@ async def get_user_balance(user_id, response: Response,  credentials: Annotated[
 
 @app.post("/users/create")
 async def create_user(data: UserCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
-
     admin_username = credentials.username
     admin_password_hash = hashlib.md5(credentials.password.encode())
 
@@ -256,24 +227,19 @@ async def create_user(data: UserCreate, response: Response,  credentials: Annota
             "message": "Invalid email"
         }}
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `users` WHERE `username`='" + str(username) +"' OR `phone`='" + str(phone) +"'"
+    sql = "SELECT * FROM `users` WHERE `username`='" + str(username) +"' OR `phone`='" + str(phone) +"'"
 
-        cursor.execute(sql)
+    result = sql_query(sql)
 
-        cursor.fetchall()
+    if(len(result) != 0):
+        response.status_code = status.HTTP_409_CONFLICT
+        return {"result": {
+            "message": "Not unique username or phone"
+        }}
 
-        if(cursor.rowcount != 0):
-            response.status_code = status.HTTP_409_CONFLICT
-            return {"result": {
-                "message": "Not unique username or phone"
-            }}
+    sql = "INSERT INTO `users`(`username`, `password_hash`, `name`, `surname`, `usergroup_id`, `avatar_id`, `email`, `phone`, `country`, `sity`, `adress`) VALUES ('" + str(username) + "','" + str(password_hash.hexdigest()) + "','" + str(name) + "','" + str(surname) + "','0','0','" + str(email) + "','" + str(phone) + "','" + str(country) + "','" + str(city) + "','" + str(adress) + "')"
 
-    with connection.cursor() as cursor:
-        sql = "INSERT INTO `users`(`username`, `password_hash`, `name`, `surname`, `usergroup_id`, `avatar_id`, `email`, `phone`, `country`, `sity`, `adress`) VALUES ('" + str(username) + "','" + str(password_hash.hexdigest()) + "','" + str(name) + "','" + str(surname) + "','0','0','" + str(email) + "','" + str(phone) + "','" + str(country) + "','" + str(city) + "','" + str(adress) + "')"
-
-        cursor.execute(sql)
-        connection.commit()
+    sql_query(sql)
 
     response.status_code = status.HTTP_201_CREATED
 
@@ -283,8 +249,6 @@ async def create_user(data: UserCreate, response: Response,  credentials: Annota
 
 @app.get("/users/{username}/{password}/valid")
 async def valid_user(username, password, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
-
     admin_username = credentials.username
     admin_password_hash = hashlib.md5(credentials.password.encode())
 
@@ -297,31 +261,26 @@ async def valid_user(username, password, response: Response,  credentials: Annot
 
     password_hash = hashlib.md5(password.encode())
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `users` WHERE `username`='" + str(username) +"' AND `password_hash`='" + str(password_hash.hexdigest()) +"'"
+    sql = "SELECT * FROM `users` WHERE `username`='" + str(username) +"' AND `password_hash`='" + str(password_hash.hexdigest()) +"'"
 
-        cursor.execute(sql)
+    result = sql_query(sql)
 
-        result = cursor.fetchall()
-
-        if(cursor.rowcount == 0):
-            return {"result":{
-                "status": "Failed",
-                "message": "Incorrect username or password"
-            }}
-        else:
-            return {"result":{
-                "status": "Success",
-                "user_id": result[0][0]
-            }}
+    if(len(result) == 0):
+        return {"result":{
+            "status": "Failed",
+            "message": "Incorrect username or password"
+        }}
+    else:
+        return {"result":{
+            "status": "Success",
+            "user_id": result[0][0]
+        }}
 
 
 #методы admins/*
 
 @app.post("/admins/create")
 async def create_admin(data: AdminCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
-
     admin_username = credentials.username
     admin_password_hash = hashlib.md5(credentials.password.encode())
 
@@ -337,24 +296,117 @@ async def create_admin(data: AdminCreate, response: Response,  credentials: Anno
     
     password_hash = hashlib.md5(password.encode())
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `admins` WHERE `username`='" + str(username) +"'"
+    sql = "SELECT * FROM `admins` WHERE `username`='" + str(username) +"'"
 
-        cursor.execute(sql)
+    result = sql_query(sql)
 
-        cursor.fetchall()
+    if(len(result) != 0):
+        response.status_code = status.HTTP_409_CONFLICT
+        return {"result": {
+            "message": "Not unique username"
+        }}
 
-        if(cursor.rowcount != 0):
-            response.status_code = status.HTTP_409_CONFLICT
-            return {"result": {
-                "message": "Not unique username"
-            }}
+    sql = "INSERT INTO `admins`(`username`, `password_hash`, `rights_group_id`) VALUES ('" + str(username) + "','" + str(password_hash.hexdigest()) + "','0')"
 
-    with connection.cursor() as cursor:
-        sql = "INSERT INTO `admins`(`username`, `password_hash`, `rights_group_id`) VALUES ('" + str(username) + "','" + str(password_hash.hexdigest()) + "','0')"
+    sql_query(sql)
 
-        cursor.execute(sql)
-        connection.commit()
+    response.status_code = status.HTTP_201_CREATED
+
+    return {"result": {
+        "message": "Success creation"
+    }}
+
+
+#методы hosts/*
+@app.get("/hosts")
+async def get_all_hosts(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    hosts_list = []
+
+    sql = "SELECT * FROM `hosts`"
+    result = sql_query(sql)
+
+    for row in result:
+        current_host = {
+            "id": row[0],
+            "name": row[1],
+            "identifier": row[2],
+            "player_id": row[3],
+            "status": row[4]
+        }
+
+        hosts_list.append(current_host)
+        
+    return {"result": hosts_list}
+
+@app.get("/hosts/{host_id}")
+async def get_host_by_id(host_id, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    sql = "SELECT * FROM `hosts` WHERE `id`='" + str(host_id) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
+        
+    host_data = {
+        "id": result[0][0],
+        "name": result[0][1],
+        "identifier": result[0][2],
+        "player_id": result[0][3],
+        "status": result[0][4]
+    }
+        
+    return {"result": host_data}
+
+
+@app.post("/hosts/create")
+async def create_host(data: HostCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    name = data.name
+    identifier = data.identifier
+
+    sql = "SELECT * FROM `hosts` WHERE `name`='" + str(name) +"' OR `identifier`='" + str(identifier) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) != 0):
+        response.status_code = status.HTTP_409_CONFLICT
+        return {"result": {
+            "message": "Not unique name or identifier"
+        }}
+
+    sql = "INSERT INTO `hosts`(`name`, `identifier`, `player_id`, `status`) VALUES ('" + str(name) + "','" + str(identifier) + "','0','disabled')"
+
+    sql_query(sql)
 
     response.status_code = status.HTTP_201_CREATED
 

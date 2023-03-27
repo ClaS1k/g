@@ -2,26 +2,20 @@
 
 import re
 import config
-import mysql
-
-from mysql import connector
+from sql import *
 
 
 def veirify_admin(username, password_hash):
     # валидация логина и пароля админа 
-    connection = mysql.connector.connect(user = config.MYSQL_LOGIN, password = config.MYSQL_PASSWORD, host = config.MYSQL_HOST, port='3306', database='gizmokiller')
+   
+    sql = "SELECT * FROM `admins` WHERE `username`='" + str(username) +"' AND `password_hash`='" + str(password_hash) +"'"
 
-    with connection.cursor() as cursor:
-        sql = "SELECT * FROM `admins` WHERE `username`='" + str(username) +"' AND `password_hash`='" + str(password_hash) +"'"
+    result = sql_query(sql)
 
-        cursor.execute(sql)
-
-        result = cursor.fetchall()
-
-        if(cursor.rowcount == 0):
-            return False
-        else:
-            return result[0][0]
+    if(len(result) == 0):
+        return False
+    else:
+        return result[0][0]
 
 
 def validate_phone(phone):
