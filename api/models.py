@@ -16,3 +16,7 @@ class UserCreate(BaseModel):
 class AdminCreate(BaseModel):
     username: str
     password: str  
+
+class HostCreate(BaseModel):
+    name: str
+    identifier: str  
