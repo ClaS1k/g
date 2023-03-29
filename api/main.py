@@ -14,7 +14,7 @@ from typing import Annotated
 
 from mysql import connector
 
-from models import UserCreate, AdminCreate, HostCreate
+from models import UserCreate, AdminCreate, HostCreate, TransactionCreate
 from validate import *
 from sql import *
 
@@ -22,7 +22,7 @@ app = FastAPI()
 security = HTTPBasic()
 
 
-#методы users/*
+# методы users/*
 
 @app.get("/users")
 async def get_all_users(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
@@ -277,7 +277,7 @@ async def valid_user(username, password, response: Response,  credentials: Annot
         }}
 
 
-#методы admins/*
+# методы admins/*
 
 @app.post("/admins/create")
 async def create_admin(data: AdminCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
@@ -317,7 +317,8 @@ async def create_admin(data: AdminCreate, response: Response,  credentials: Anno
     }}
 
 
-#методы hosts/*
+# методы hosts/*
+
 @app.get("/hosts")
 async def get_all_hosts(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     admin_username = credentials.username
@@ -378,7 +379,6 @@ async def get_host_by_id(host_id, response: Response,  credentials: Annotated[HT
         
     return {"result": host_data}
 
-
 @app.post("/hosts/create")
 async def create_host(data: HostCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     admin_username = credentials.username
@@ -413,6 +413,144 @@ async def create_host(data: HostCreate, response: Response,  credentials: Annota
     return {"result": {
         "message": "Success creation"
     }}
+
+
+# методы transactions/*
+
+@app.get("/transactions")
+async def get_all_transaction(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    transactions_list = []
+
+    sql = "SELECT * FROM `transactions`"
+    result = sql_query(sql)
+
+    for row in result:
+        current_transaction = {
+            "id": row[0],
+            "user_id": row[1],
+            "summ": row[2],
+            "currency_id": row[3],
+            "created_by_id": row[4],
+            "date": row[5],
+            "type": row[6]
+        }
+
+        transactions_list.append(current_transaction)
+        
+    return {"result": transactions_list}
+    
+
+@app.post("/transactions/create")
+async def create_transaction(data: TransactionCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    user_id = data.user_id
+    summ = data.summ
+    currency_id = data.currency_id
+    type = data.type 
+    # deposit, payment или set
+
+    if(summ < 0):
+        response.status_code = status.HTTP_403_FORBIDDEN
+        return {"result":{
+            "message": "Summ < 0"
+        }}
+
+    if(type != "deposit" and type != "payment" and type != "set"):
+        response.status_code = status.HTTP_403_FORBIDDEN
+        return {"result":{
+            "message": "Type must be deposit, payment or set"
+        }}
+
+    sql = "SELECT * FROM `users` WHERE `user_id`='" + str(user_id) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"result":{
+            "message": "User not found"
+        }}
+    
+    sql = "SELECT * FROM `currency` WHERE `id`='" + str(currency_id) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"result":{
+            "message": "Currency not found"
+        }}
+    
+    user_currency_balance_id = 0
+    user_currency_balance = 0
+
+    sql = "SELECT * FROM `user_balance` WHERE `user_id`='" + str(user_id) + "' AND `currency_id`='" + str(currency_id) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) == 0):
+        sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency) + "','0')"
+        sql_query(sql)
+
+        user_currency_balance = 0
+    else:
+        user_currency_balance_id = result[0][0]
+        user_currency_balance = result[0][3]
+
+    if(type == "deposit"):
+        user_currency_balance += summ
+
+        sql = "UPDATE `user_balance` SET `balance`='" + str(user_currency_balance) + "' WHERE `id`='" + str(user_currency_balance_id) + "'"
+        sql_query(sql)
+
+        sql = "INSERT INTO `transactions`(`user_id`, `summ`, `currency_id`, `created_by_id`, `date`, `type`) VALUES ('" + str(user_id) + "','" + str(summ) + "','" + str(currency_id) + "','"+ str(veirify) +"',NOW(),'deposit')"
+        sql_query(sql)
+    
+    if(type == "payment"):
+        user_currency_balance -= summ
+
+        if(user_currency_balance < 0):
+            response.status_code = status.HTTP_403_FORBIDDEN
+            return {"result":{
+                "message":"Not enough money"
+            }}
+
+        sql = "UPDATE `user_balance` SET `balance`='" + str(user_currency_balance) + "' WHERE `id`='" + str(user_currency_balance_id) + "'"
+        sql_query(sql)
+
+        sql = "INSERT INTO `transactions`(`user_id`, `summ`, `currency_id`, `created_by_id`, `date`, `type`) VALUES ('" + str(user_id) + "','" + str(summ) + "','" + str(currency_id) + "','"+ str(veirify) +"',NOW(),'payment')"
+        sql_query(sql)
+
+    if(type == "set"):
+        user_currency_balance = summ
+
+        sql = "UPDATE `user_balance` SET `balance`='" + str(user_currency_balance) + "' WHERE `id`='" + str(user_currency_balance_id) + "'"
+        sql_query(sql)
+
+        sql = "INSERT INTO `transactions`(`user_id`, `summ`, `currency_id`, `created_by_id`, `date`, `type`) VALUES ('" + str(user_id) + "','" + str(summ) + "','" + str(currency_id) + "','"+ str(veirify) +"',NOW(),'set')"
+        sql_query(sql)
+
+    response.status_code = status.HTTP_201_CREATED
+    return
 
 if __name__ == '__main__':
     uvicorn.run("main:app", reload=True)

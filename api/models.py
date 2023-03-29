@@ -20,3 +20,9 @@ class AdminCreate(BaseModel):
 class HostCreate(BaseModel):
     name: str
     identifier: str  
+
+class TransactionCreate(BaseModel):
+    user_id: int
+    summ: float
+    currency_id: int 
+    type: str
