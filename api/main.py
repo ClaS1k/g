@@ -537,7 +537,7 @@ async def create_transaction(data: TransactionCreate, response: Response,  crede
     result = sql_query(sql)
 
     if(len(result) == 0):
-        sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency) + "','0')"
+        sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency_id) + "','0')"
         sql_query(sql)
 
         user_currency_balance = 0
