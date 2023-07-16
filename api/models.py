@@ -1,6 +1,7 @@
 #тут лежат все модели pydantic для запросов, чтоб не срать в код
 
 from pydantic import BaseModel
+from datetime import datetime
 
 class UserCreate(BaseModel):
     username: str
@@ -26,3 +27,9 @@ class TransactionCreate(BaseModel):
     summ: float
     currency_id: int 
     type: str
+
+class ReservationCreate(BaseModel):
+    user_id: int
+    host_id: int
+    date_from: datetime
+    date_to: datetime

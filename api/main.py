@@ -14,13 +14,12 @@ from typing import Annotated
 
 from mysql import connector
 
-from models import UserCreate, AdminCreate, HostCreate, TransactionCreate
+from models import UserCreate, AdminCreate, HostCreate, TransactionCreate, ReservationCreate
 from validate import *
 from sql import *
 
 app = FastAPI()
 security = HTTPBasic()
-
 
 # методы users/*
 
@@ -51,8 +50,8 @@ async def get_all_users(response: Response,  credentials: Annotated[HTTPBasicCre
             "email": row[7],
             "phone": row[8],
             "country": row[9],
-            "sity": row[10],
-            "adress": row[11],
+            "city": row[10],
+            "address": row[11],
         }
 
         users_list.append(current_user)
@@ -88,8 +87,8 @@ async def get_user_by_id(user_id, response: Response,  credentials: Annotated[HT
         "email": result[0][7],
         "phone": result[0][8],
         "country": result[0][9],
-        "sity": result[0][10],
-        "adress": result[0][11],
+        "city": result[0][10],
+        "address": result[0][11],
     }
         
     return {"result": user_data}
@@ -123,8 +122,8 @@ async def get_user_by_username(username, response: Response,  credentials: Annot
         "email": result[0][7],
         "phone": result[0][8],
         "country": result[0][9],
-        "sity": result[0][10],
-        "adress": result[0][11],
+        "city": result[0][10],
+        "address": result[0][11],
     }
         
     return {"result": user_data}
@@ -209,7 +208,7 @@ async def create_user(data: UserCreate, response: Response,  credentials: Annota
     phone = data.phone 
     city = data.city or ""
     country = data.country or ""
-    adress = data.adress or ""
+    address = data.address or ""
     
     password_hash = hashlib.md5(password.encode())
 
@@ -237,7 +236,7 @@ async def create_user(data: UserCreate, response: Response,  credentials: Annota
             "message": "Not unique username or phone"
         }}
 
-    sql = "INSERT INTO `users`(`username`, `password_hash`, `name`, `surname`, `usergroup_id`, `avatar_id`, `email`, `phone`, `country`, `sity`, `adress`) VALUES ('" + str(username) + "','" + str(password_hash.hexdigest()) + "','" + str(name) + "','" + str(surname) + "','0','0','" + str(email) + "','" + str(phone) + "','" + str(country) + "','" + str(city) + "','" + str(adress) + "')"
+    sql = "INSERT INTO `users`(`username`, `password_hash`, `name`, `surname`, `usergroup_id`, `avatar_id`, `email`, `phone`, `country`, `city`, `address`) VALUES ('" + str(username) + "','" + str(password_hash.hexdigest()) + "','" + str(name) + "','" + str(surname) + "','0','0','" + str(email) + "','" + str(phone) + "','" + str(country) + "','" + str(city) + "','" + str(address) + "')"
 
     sql_query(sql)
 
@@ -379,6 +378,37 @@ async def get_host_by_id(host_id, response: Response,  credentials: Annotated[HT
         
     return {"result": host_data}
 
+@app.get("/hosts/{host_identifier}/identifier")
+async def get_host_by_id(host_identifier, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    sql = "SELECT * FROM `hosts` WHERE `identifier`='" + str(host_identifier) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
+        
+    host_data = {
+        "id": result[0][0],
+        "name": result[0][1],
+        "identifier": result[0][2],
+        "player_id": result[0][3],
+        "status": result[0][4]
+    }
+        
+    return {"result": host_data}
+
+
 @app.post("/hosts/create")
 async def create_host(data: HostCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     admin_username = credentials.username
@@ -449,7 +479,6 @@ async def get_all_transaction(response: Response,  credentials: Annotated[HTTPBa
         
     return {"result": transactions_list}
     
-
 @app.post("/transactions/create")
 async def create_transaction(data: TransactionCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     admin_username = credentials.username
@@ -551,6 +580,78 @@ async def create_transaction(data: TransactionCreate, response: Response,  crede
 
     response.status_code = status.HTTP_201_CREATED
     return
+
+
+# методы reservations/*
+
+@app.get("/reservations")
+async def get_reservations(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    
+
+@app.post("/reservations/create")
+async def create_reservation(data: ReservationCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    user_id = data.user_id
+    host_id = data.host_id
+    date_from = data.date_from
+    date_to = data.date_to
+
+    sql = "SELECT * FROM `users` WHERE `user_id`='" + str(user_id) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"result":{
+            "message": "User not found"
+        }}
+
+    sql = "SELECT * FROM `hosts` WHERE `id`='" + str(host_id) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) == 0):
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return {"result":{
+            "message": "Host not found"
+        }}
+
+    sql = "SELECT * FROM `reservations` WHERE ((`date_from`>='" + str(date_from) + "' AND `date_from`<='" + str(date_to) + "') OR (`date_to`>='" + str(date_from) + "' AND `date_to`<='" + str(date_to) + "') OR ('" + str(date_from) + "'>=`date_from` AND '" + str(date_from) + "'<=`date_to`) OR ('" + str(date_to) + "'>=`date_from` AND '" + str(date_to) + "'<=`date_to`)) AND `host_id`='" + str(host_id) + "'"
+
+    result = sql_query(sql)
+
+    if(len(result) != 0):
+        response.status_code = status.HTTP_403_FORBIDDEN
+        return {"result":{
+            "message": "Host is unavailable"
+        }}
+
+    sql = "INSERT INTO `reservations`(`date_from`, `date_to`, `user_id`, `host_id`) VALUES ('" + str(date_from) + "','" + str(date_to) + "','" + str(user_id) + "','" + str(host_id) + "')"
+
+    sql_query(sql)
+
+    response.status_code = status.HTTP_201_CREATED
+    return
+
 
 if __name__ == '__main__':
     uvicorn.run("main:app", reload=True)
