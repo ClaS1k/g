@@ -14,6 +14,10 @@ class UserCreate(BaseModel):
     country: str | None = None 
     adress: str | None = None 
 
+class UsergroupCreate(BaseModel):
+    name: str
+    billing_profile_id: int
+
 class AdminCreate(BaseModel):
     username: str
     password: str  
@@ -33,3 +37,8 @@ class ReservationCreate(BaseModel):
     host_id: int
     date_from: datetime
     date_to: datetime
+
+class BillingProfile(BaseModel):
+    name: str
+    default: list
+    exceptions: list
