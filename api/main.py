@@ -14,7 +14,7 @@ from typing import Annotated
 
 from mysql import connector
 
-from models import UserCreate, AdminCreate, HostCreate, TransactionCreate, ReservationCreate
+from models import UserCreate, AdminCreate, HostCreate, TransactionCreate, ReservationCreate, BillingProfile, UsergroupCreate
 from validate import *
 from sql import *
 
@@ -92,6 +92,48 @@ async def get_user_by_id(user_id, response: Response,  credentials: Annotated[HT
     }
         
     return {"result": user_data}
+
+@app.get("/users/find/{query}")
+async def find_users_by_username(query, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+    
+    if(len(query) < 2):
+        response.status_code = status.HTTP_400_BAD_REQUEST
+
+        return {"result": {
+            "message": "Query must be longer 2 symbols"
+        }}
+
+    sql = "SELECT * FROM `users` WHERE LOCATE('"+str(query)+"', `username`)"
+    result = sql_query(sql)
+
+    users_list = []
+
+    for row in result:
+        current_user = {
+            "username": row[1],
+            "name": row[3],
+            "surname": row[4],
+            "usergroup_id": row[5],
+            "avatar_id": row[6],
+            "email": row[7],
+            "phone": row[8],
+            "country": row[9],
+            "city": row[10],
+            "address": row[11],
+        }
+
+        users_list.append(current_user)
+        
+    return {"result": users_list}
 
 @app.get("/users/{username}/username")
 async def get_user_by_username(username, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
@@ -276,6 +318,88 @@ async def valid_user(username, password, response: Response,  credentials: Annot
         }}
 
 
+# методы usergroups
+
+@app.get("/usergroups")
+async def get_all_usergroups(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    sql = "SELECT * FROM `usergroups`";
+    result = sql_query(sql)
+    
+    usergroups_list = []
+
+    for usergroup in result:
+        current_usergroup = {
+            "id": usergroup[0],
+            "name": usergroup[1],
+            "billing_profile_id": usergroup[2]
+        }
+
+        usergroups_list.append(current_usergroup)
+
+    return {"result": usergroups_list}
+
+@app.post("/usergroups/create")
+async def create_billing_profile(data: UsergroupCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return  
+
+    name = data.name
+    billing_profile_id = data.billing_profile_id
+
+    sql = "SELECT * FROM `billing_profiles` WHERE `id`='"+ str(billing_profile_id) +"'"
+    result = sql_query(sql)
+
+    if(len(name) < 3):
+        response.status_code = status.HTTP_400_BAD_REQUEST
+
+        return {"result": {
+            "message": "Name must be longer 3 symbols"
+        }}
+
+    if(len(result) == 0):
+        response.status_code = status.HTTP_400_BAD_REQUEST
+
+        return {"result": {
+            "message": "Billing profile not found"
+        }}
+    
+    sql = "SELECT * FROM `usergroups` WHERE `name`='"+ str(name) +"'"
+    result = sql_query(sql)
+
+    if(len(result) != 0):
+        response.status_code = status.HTTP_409_CONFLICT
+
+        return {"result": {
+            "message": "Name is not unique"
+        }}
+
+    sql = "INSERT INTO `usergroups`(`name`, `billing_profile_id`) VALUES ('" + str(name) + "','" + str(billing_profile_id) + "')"
+    sql_query(sql)
+
+    response.status_code = status.HTTP_201_CREATED
+
+    return {"result": {
+        "message": "Success creation"
+    }}
+
+
 # методы admins/*
 
 @app.post("/admins/create")
@@ -314,6 +438,23 @@ async def create_admin(data: AdminCreate, response: Response,  credentials: Anno
     return {"result": {
         "message": "Success creation"
     }}
+
+@app.post("/admins/validate")
+async def validate_admin(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    return {"result":{
+            "status": "Success",
+            "user_id": veirify
+        }}
 
 
 # методы hosts/*
@@ -537,7 +678,7 @@ async def create_transaction(data: TransactionCreate, response: Response,  crede
     result = sql_query(sql)
 
     if(len(result) == 0):
-        sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency) + "','0')"
+        sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency_id) + "','0')"
         sql_query(sql)
 
         user_currency_balance = 0
@@ -595,9 +736,26 @@ async def get_reservations(response: Response,  credentials: Annotated[HTTPBasic
     if(veirify == False):
         response.status_code = status.HTTP_401_UNAUTHORIZED
         return
-
     
+    sql = "SELECT * FROM `reservations` ORDER BY `date_from` DESC LIMIT 100"
+    result = sql_query(sql)
 
+    reservations_list = []
+
+    for reservation in result:
+        current_reservation = {
+            "id": reservation[0],
+            "date_from": reservation[1],
+            "date_to": reservation[2],
+            "user_id": reservation[3],
+            "host_id": reservation[4]
+        }
+
+        reservations_list.append(current_reservation)
+
+    return {"result": reservations_list}
+    # тут продолжить
+    
 @app.post("/reservations/create")
 async def create_reservation(data: ReservationCreate, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
     admin_username = credentials.username
@@ -651,6 +809,116 @@ async def create_reservation(data: ReservationCreate, response: Response,  crede
 
     response.status_code = status.HTTP_201_CREATED
     return
+
+
+# методы billing
+@app.get("/billing")
+async def get_billing_profiles(response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return
+
+    sql = "SELECT * FROM `billing_profiles`";
+    result = sql_query(sql)
+    
+    profiles_list = []
+
+    for profile in result:
+        sheme = json.loads(profile[1])
+
+        current_profile = {
+            "id": profile[0],
+            "sheme": sheme
+        }
+
+        profiles_list.append(current_profile)
+
+    return {"result": profiles_list}
+
+@app.post("/billing/create")
+async def create_billing_profile(data: BillingProfile, response: Response,  credentials: Annotated[HTTPBasicCredentials, Depends(security)]):
+    admin_username = credentials.username
+    admin_password_hash = hashlib.md5(credentials.password.encode())
+
+    veirify = veirify_admin(admin_username, admin_password_hash.hexdigest())
+    #тут будет лежать id админа, создавшего запрос
+
+    if(veirify == False):
+        response.status_code = status.HTTP_401_UNAUTHORIZED
+        return  
+
+    name = data.name
+    default_profile = data.default
+    exeptions_list = data.exeptions
+
+    if len(name) < 3:  
+        response.status_code = status.HTTP_400_BAD_REQUEST
+
+        return {"result": {
+            "message": "Name must be longer 3 symbols"
+        }}
+    
+    for profile in default_profile:
+        try:
+            if profile['currency_id'] == "" or profile['price'] == "":
+                response.status_code = status.HTTP_400_BAD_REQUEST
+
+                return {"result": {
+                    "message": "Error in default profile data"
+                }}
+        except:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+
+            return {"result": {
+                "message": "Error in default profile data"
+            }}
+
+    for exception in exeptions_list:
+        try:
+            if exception['day_of_week'] == "" or exception['time_from'] == "" or exception['time_to'] == "":
+                response.status_code = status.HTTP_400_BAD_REQUEST
+
+                return {"result": {
+                    "message": "Invalid exeption data"
+                }}
+
+            for profile in exception['profile']:
+                if profile['currency_id'] == "" or profile['price'] == "":
+                    response.status_code = status.HTTP_400_BAD_REQUEST
+
+                    return {"result": {
+                        "message": "Invalid exeption profile"
+                    }}
+                    
+        except:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+
+            return {"result": {
+                    "message": "Invalid exeption data"
+            }}
+
+    obj = {
+        "name":name,
+        "default":default_profile,
+        "exceptions":exeptions_list
+    }
+
+    json_data = json.dumps(obj)
+
+    sql = "INSERT INTO `billing_profiles`(`sheme`) VALUES ('"+ json_data +"')"
+    sql_query(sql)
+
+    response.status_code = status.HTTP_201_CREATED
+
+    return {"result": {
+        "message": "Success creation"
+    }}
 
 
 if __name__ == '__main__':
