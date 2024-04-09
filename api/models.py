@@ -14,6 +14,10 @@ class UserCreate(BaseModel):
     country: str | None = None 
     adress: str | None = None 
 
+class UsergroupCreate(BaseModel):
+    name: str
+    billing_profile_id: int
+
 class AdminCreate(BaseModel):
     username: str
     password: str  
@@ -33,3 +37,25 @@ class ReservationCreate(BaseModel):
     host_id: int
     date_from: datetime
     date_to: datetime
+
+class BillingProfile(BaseModel):
+    name: str
+    default: list
+    exceptions: list
+
+class ProductCreate(BaseModel):
+    name: str
+    priority_level: int
+    included_time: int
+    lifetime: int
+    available_options: dict
+    coast_sheme: dict
+
+class OrderCreate(BaseModel):
+    user_id: int
+    product_id: int
+    currency_id: int
+
+class CurrencyCreate(BaseModel):
+    name: str
+    symbol: str
