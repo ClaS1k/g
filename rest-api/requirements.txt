@@ -1,0 +1,16 @@
+fastapi
+fastapi_cache2
+python-jose
+loguru
+passlib
+pymysql
+sse-starlette
+pydantic
+pydantic[email]
+pydantic_settings
+python-dotenv
+Requests
+SQLAlchemy
+uvicorn
+python-multipart
+bcrypt

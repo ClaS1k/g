@@ -1,0 +1,53 @@
+name: e-club-biome
+volumes:
+  db:
+services:
+  mysql:
+    image: mysql:8.3.0
+    ports:
+      - "3306:3306"
+    env_file:
+      - .env
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+
+  rest-api:
+    build:
+      context: ../rest-api
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3333"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      interval: 1s
+      timeout: 3s
+      retries: 30
+  create_db:
+    image: joseluisq/mysql-client
+    env_file:
+      - .env
+    command: ["sh", "-c", "mysql -h mysql -u $MYSQL_USER -p$MYSQL_PASSWORD < /scripts/db.sql"]
+    volumes:
+      - ./scripts:/scripts
+
+  node-app:
+    build:
+      context: ./node-app
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      rest-api:
+        condition: service_healthy
+    env_file:
+      - .env
