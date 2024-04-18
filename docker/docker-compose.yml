@@ -8,13 +8,17 @@ services:
       - "3306:3306"
     env_file:
       - .env
+    environment:
+    # pass Moscow time zone to mysql
+      TZ: "Europe/Moscow"
     volumes:
       - db:/var/lib/mysql
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 1s
-      timeout: 3s
-      retries: 30
+      interval: 3s
+      timeout: 5s
+      retries: 5
 
   rest-api:
     build:
@@ -27,27 +31,35 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    environment:
+      # pass Moscow time zone to mysql
+      TZ: "Europe/Moscow"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
-      interval: 1s
+      interval: 5s
       timeout: 3s
-      retries: 30
-  create_db:
-    image: joseluisq/mysql-client
-    env_file:
-      - .env
-    command: ["sh", "-c", "mysql -h mysql -u $MYSQL_USER -p$MYSQL_PASSWORD < /scripts/db.sql"]
-    volumes:
-      - ./scripts:/scripts
+      retries: 3
+  # create_db:
+  #   image: joseluisq/mysql-client
+  #   env_file:
+  #     - .env
+  #   command: ["sh", "-c", "mysql -h mysql -u $MYSQL_USER -p$MYSQL_PASSWORD < /scripts/db.sql"]
+  #   volumes:
+  #     - ./scripts:/scripts
 
   node-app:
     build:
-      context: ./node-app
+      context: ../node-app
       dockerfile: Dockerfile
     ports:
-      - "8080:8080"
+      - "8866:8766"
     depends_on:
       rest-api:
         condition: service_healthy
     env_file:
       - .env
+    restart: unless-stopped
+    environment:
+      # pass Moscow time zone to mysql
+      TZ: "Europe/Moscow"
