@@ -4,10 +4,10 @@ const io = require('socket.io-client');
 let socket;
 const identifier = '00:25:96:FF:FE:12:34:56';
 const base_id = '00:25:96:FF:FE:12:34:56';
-const valid_token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Im9uaXh4IiwiZXhwIjoxNzE0MDY0NDgxfQ.INl6wiKKq5aX0pB-Y1Dv4sCtc59Z9fhltMcSZpboWy0'
+const valid_token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Im9uaXh4IiwiZXhwIjoxNzE1MzM4MTMxfQ.Nkx8Sk0cta87-0FCYmNUhzAXjGDlRVqagd36JF9IKMo'
 beforeAll((done) => {
     // Setup
-    socket = io(`http://localhost:8866`, {
+    socket = io(`https://biome.metagaming.ru`, {
       'reconnection delay': 0,
       'reopen delay': 0,
       'force new connection': true,
@@ -26,7 +26,7 @@ afterEach((done) => {
     if (socket.connected) {
       socket.disconnect();
     }
-    socket = io(`http://localhost:8866`, {
+    socket = io(`https://biome.metagaming.ru`, {
       'reconnection delay': 0,
       'reopen delay': 0,
       transports: ['websocket'],

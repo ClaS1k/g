@@ -40,13 +40,13 @@ services:
       interval: 5s
       timeout: 3s
       retries: 3
-  # create_db:
-  #   image: joseluisq/mysql-client
-  #   env_file:
-  #     - .env
-  #   command: ["sh", "-c", "mysql -h mysql -u $MYSQL_USER -p$MYSQL_PASSWORD < /scripts/db.sql"]
-  #   volumes:
-  #     - ./scripts:/scripts
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.biome-api.loadbalancer.server.port=3333"
+      - "traefik.http.routers.biome-api.tls.certresolver=le"
+      - "traefik.http.routers.biome-api.rule=Host(`api.metagaming.ru/`)"
+      - "traefik.http.routers.biome-api.entrypoints=websecure"
+      - "traefik.http.routers.biome-api.tls=true"
 
   node-app:
     build:
@@ -63,3 +63,10 @@ services:
     environment:
       # pass Moscow time zone to mysql
       TZ: "Europe/Moscow"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.biome-ws.loadbalancer.server.port=8766"
+      - "traefik.http.routers.biome-ws.tls.certresolver=le"
+      - "traefik.http.routers.biome-ws.rule=Host(`api.metagaming.ru/`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.biome-ws.entrypoints=websecure"
+      - "traefik.http.routers.biome-ws.tls=true"

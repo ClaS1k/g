@@ -26,7 +26,7 @@ console.log("🔧 Environment variables:",
     process.env.TARIFICATION_INTERVAL_SEC
 );
 // configure constants from the .env file
-const port = process.env.PORT || 8766;
+const port = process.env.SOCKET_PORT || 8766;
 const secret = process.env.SECRET_KEY
 const tarification_interval_sec = process.env.TARIFICATION_INTERVAL_SEC || 1;
 
