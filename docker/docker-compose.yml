@@ -67,6 +67,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.services.biome-ws.loadbalancer.server.port=8766"
       - "traefik.http.routers.biome-ws.tls.certresolver=le"
-      - "traefik.http.routers.biome-ws.rule=Host(`api.metagaming.ru/`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.biome-ws.rule=Host(`biome.metagaming.ru/`)"
       - "traefik.http.routers.biome-ws.entrypoints=websecure"
       - "traefik.http.routers.biome-ws.tls=true"
