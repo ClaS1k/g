@@ -1,0 +1,72 @@
+name: e-club-biome
+volumes:
+  db:
+services:
+  mysql:
+    image: mysql:8.3.0
+    ports:
+      - "3306:3306"
+    env_file:
+      - .env
+    environment:
+    # pass Moscow time zone to mysql
+      TZ: "Europe/Moscow"
+    volumes:
+      - db:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+
+  rest-api:
+    build:
+      context: ../rest-api
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3333"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # pass Moscow time zone to mysql
+      TZ: "Europe/Moscow"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.biome-api.loadbalancer.server.port=3333"
+      - "traefik.http.routers.biome-api.tls.certresolver=le"
+      - "traefik.http.routers.biome-api.rule=Host(`api.metagaming.ru/`)"
+      - "traefik.http.routers.biome-api.entrypoints=websecure"
+      - "traefik.http.routers.biome-api.tls=true"
+
+  node-app:
+    build:
+      context: ../node-app
+      dockerfile: Dockerfile
+    ports:
+      - "8866:8766"
+    depends_on:
+      rest-api:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      # pass Moscow time zone to mysql
+      TZ: "Europe/Moscow"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.biome-ws.loadbalancer.server.port=8766"
+      - "traefik.http.routers.biome-ws.tls.certresolver=le"
+      - "traefik.http.routers.biome-ws.rule=Host(`biome.metagaming.ru/`)"
+      - "traefik.http.routers.biome-ws.entrypoints=websecure"
+      - "traefik.http.routers.biome-ws.tls=true"
