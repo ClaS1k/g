@@ -410,6 +410,28 @@ async def create_user(data: UserCreate, response: Response,  db: Session = Depen
 
     crud.raw_query(db, sql)
 
+    user_id = crud.get_user(db, username).id
+    currency_list = []
+
+    sql = "SELECT * FROM `currency`"
+
+    result = crud.raw_query(db, sql)
+
+    for row in result:
+        currency_list.append(row[0])
+
+    user_balance_list = []
+
+    for currency in currency_list:
+        sql = "SELECT * FROM `user_balance` WHERE `user_id`='" + str(user_id) + "' AND `currency_id`='" + str(currency) + "'"
+
+        result = crud.raw_query(db, sql)
+
+        if(len(result) == 0):
+            sql = "INSERT INTO `user_balance`(`user_id`, `currency_id`, `balance`) VALUES ('" + str(user_id) + "','" + str(currency) + "','0')"
+
+            crud.raw_query(db, sql)
+
     response.status_code = status.HTTP_201_CREATED
 
     return {"result": {
